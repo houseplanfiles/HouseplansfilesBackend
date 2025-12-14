@@ -35,44 +35,41 @@ connectDB();
 
 const app = express();
 
+// =====================
+// BODY PARSER
+// =====================
+app.use(express.json());
+
+// =====================
+// ✅ CORS (FIXED)
+// =====================
+app.use(
+  cors({
+    origin: [
+      "https://www.houseplanfiles.com",
+      "https://houseplansfilesfrontend.vercel.app",
+    ],
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true,
+  })
+);
+
 // ======================
 // 🔥 LOGGING MIDDLEWARE
 // ======================
 app.use((req, res, next) => {
-  const hostUrl = req.protocol + "://" + req.get("host");
-
-  console.log("===== NEW REQUEST RECEIVED =====");
-  console.log("Host URL:", hostUrl);
-  console.log("Full URL:", hostUrl + req.originalUrl);
-  console.log("Headers:", req.headers);
-  console.log("Request Payload:", req.body);
-  console.log("==================================");
-
+  console.log("===== NEW REQUEST =====");
+  console.log("Method:", req.method);
+  console.log("URL:", req.originalUrl);
+  console.log("Body:", req.body);
+  console.log("=======================");
   next();
 });
 
 // =====================
-// ✅ CORS FIX (Vercel)
+// STATIC FILES
 // =====================
-app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "https://www.houseplanfiles.com","https://houseplansfilesfrontend.vercel.app");
-  res.header(
-    "Access-Control-Allow-Methods",
-    "GET, POST, PUT, DELETE, PATCH, OPTIONS"
-  );
-  res.header(
-    "Access-Control-Allow-Headers",
-    "Content-Type, Authorization, x-requested-with"
-  );
-  res.header("Access-Control-Allow-Credentials", "true");
-
-  if (req.method === "OPTIONS") {
-    return res.sendStatus(200);
-  }
-  next();
-});
-
-app.use(express.json());
 app.use("/uploads", express.static(path.join(__dirname, "/uploads")));
 
 // ==============================
@@ -105,13 +102,19 @@ app.use("/api/media", mediaRoutes);
 app.use("/share", shareRoutes);
 app.use("/api/notifications", notificationRoutes);
 
+// =====================
 // ERROR HANDLERS
+// =====================
 app.use(notFound);
 app.use(errorHandler);
 
-// PORT
+// =====================
+// PORT (Local only)
+// =====================
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
 
-module.exports = app; // for vercel
+module.exports = app; // 👈 REQUIRED for Vercel
