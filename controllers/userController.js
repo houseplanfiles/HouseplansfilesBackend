@@ -1,0 +1,635 @@
+const asyncHandler = require("express-async-handler");
+const User = require("../models/userModel.js");
+const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
+const { sendEmail } = require("../utils/mailer.js");
+
+const generateToken = (id) => {
+  return jwt.sign({ id }, process.env.JWT_SECRET, {
+    expiresIn: "30d",
+  });
+};
+
+const validateRoleFields = (role, body) => {
+  const {
+    name,
+    profession,
+    businessName,
+    address,
+    city,
+    materialType,
+    companyName,
+    experience,
+    contractorType,
+  } = body;
+  switch (role) {
+    case "user":
+      if (!name) throw new Error("Full Name is required for Users");
+      return { name, isApproved: true, status: "Approved" };
+    case "professional":
+      if (!name || !profession || !city || !experience)
+        throw new Error(
+          "Full Name, Profession, City, and Experience are required"
+        );
+      return {
+        name,
+        profession,
+        city,
+        experience,
+        isApproved: false,
+        status: "Pending",
+      };
+    case "seller":
+      if (!businessName || !address || !city || !materialType)
+        throw new Error(
+          "Business Name, Address, City, and Material Type are required"
+        );
+      return {
+        businessName,
+        address,
+        city,
+        materialType,
+        isApproved: false,
+        status: "Pending",
+      };
+    case "Contractor":
+      if (
+        !name ||
+        !companyName ||
+        !address ||
+        !city ||
+        !experience ||
+        !profession
+      )
+        throw new Error(
+          "Full Name, Company Name, Address, City, Experience, and Profession are required"
+        );
+      return {
+        name,
+        companyName,
+        address,
+        city,
+        experience,
+        profession,
+        contractorType: contractorType || "Normal",
+        isApproved: false,
+        status: "Pending",
+      };
+    case "admin":
+      if (!name) throw new Error("Full Name is required for Admin");
+      return { name, isApproved: true, status: "Approved" };
+    default:
+      throw new Error("Invalid role specified");
+  }
+};
+
+const getUserDisplayName = (user) => {
+  return user.name || user.businessName || user.companyName;
+};
+
+const registerUser = asyncHandler(async (req, res) => {
+  const { email, password, phone, role } = req.body;
+  if (!email || !password || !phone || !role) {
+    res.status(400);
+    throw new Error(
+      "Please provide all required fields: email, password, phone, and role"
+    );
+  }
+  const userExists = await User.findOne({ email });
+  if (userExists) {
+    res.status(400);
+    throw new Error("User with this email already exists");
+  }
+  let userData = { email, password, phone, role };
+  try {
+    const roleSpecificData = validateRoleFields(role, req.body);
+    userData = { ...userData, ...roleSpecificData };
+
+    // Handle file uploads
+    if (req.files) {
+      if (req.files.photo) userData.photoUrl = req.files.photo[0].location;
+      if (req.files.businessCertification)
+        userData.businessCertificationUrl =
+          req.files.businessCertification[0].location;
+      if (req.files.shopImage)
+        userData.shopImageUrl = req.files.shopImage[0].location;
+      // --- NEW: Portfolio PDF for professionals ---
+      if (req.files.portfolio)
+        userData.portfolioUrl = req.files.portfolio[0].location;
+    }
+
+    // --- NEW: Add bank details for professionals ---
+    if (role === "professional") {
+      userData.bankName = req.body.bankName || null; // <--- ADDED: Bank Name
+      userData.bankAccountNumber = req.body.bankAccountNumber || null;
+      userData.ifscCode = req.body.ifscCode || null;
+      userData.upiId = req.body.upiId || null;
+    }
+
+    const user = await User.create(userData);
+    res.status(201).json({
+      _id: user._id,
+      email: user.email,
+      role: user.role,
+      name: getUserDisplayName(user),
+      isApproved: user.isApproved,
+      status: user.status,
+      token: generateToken(user._id),
+    });
+  } catch (error) {
+    res.status(400);
+    throw error;
+  }
+});
+
+const createUserByAdmin = asyncHandler(async (req, res) => {
+  const { email, password, phone, role } = req.body;
+  if (!email || !password || !phone || !role) {
+    res.status(400);
+    throw new Error("Email, password, phone, and role are required.");
+  }
+  const userExists = await User.findOne({ email });
+  if (userExists) {
+    res.status(400);
+    throw new Error("User with this email already exists");
+  }
+  let userData = { email, password, phone, role };
+  try {
+    const roleSpecificData = validateRoleFields(role, req.body);
+    userData = { ...userData, ...roleSpecificData };
+    userData.isApproved = true;
+    userData.status = "Approved";
+
+    if (req.files) {
+      if (req.files.photo) userData.photoUrl = req.files.photo[0].location;
+      if (req.files.businessCertification)
+        userData.businessCertificationUrl =
+          req.files.businessCertification[0].location;
+      if (req.files.shopImage)
+        userData.shopImageUrl = req.files.shopImage[0].location;
+    }
+
+    const user = await User.create(userData);
+    res.status(201).json({
+      _id: user._id,
+      email: user.email,
+      role: user.role,
+      name: getUserDisplayName(user),
+    });
+  } catch (error) {
+    res.status(400);
+    throw error;
+  }
+});
+
+const loginUser = asyncHandler(async (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) {
+    res.status(400);
+    throw new Error("Please provide email and password");
+  }
+  const user = await User.findOne({ email });
+
+  if (user && (await user.matchPassword(password))) {
+    if (
+      ["professional", "seller", "Contractor"].includes(user.role) &&
+      !user.isApproved
+    ) {
+      res.status(403);
+      throw new Error(
+        `Your account is currently in "${user.status}" state. Please wait for admin approval.`
+      );
+    }
+
+    res.json({
+      _id: user._id,
+      email: user.email,
+      role: user.role,
+      name: getUserDisplayName(user),
+      isApproved: user.isApproved,
+      status: user.status,
+      profession: user.profession,
+      businessName: user.businessName,
+      companyName: user.companyName,
+      experience: user.experience,
+      city: user.city,
+      photoUrl: user.photoUrl,
+      contractorType: user.contractorType,
+      // Bank Details in Login Response
+      bankName: user.bankName, // <--- ADDED
+      bankAccountNumber: user.bankAccountNumber,
+      ifscCode: user.ifscCode,
+      upiId: user.upiId,
+      token: generateToken(user._id),
+    });
+  } else {
+    res.status(401);
+    throw new Error("Invalid email or password");
+  }
+});
+
+const getAllUsers = async (req, res) => {
+  try {
+    const { page = 1, limit = 10, search, role, status, city } = req.query;
+
+    const query = {};
+
+    if (search) {
+      query.$or = [
+        { name: { $regex: search, $options: "i" } },
+        { email: { $regex: search, $options: "i" } },
+        { businessName: { $regex: search, $options: "i" } },
+        { companyName: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    if (role && role !== "all") {
+      query.role = role;
+    }
+
+    if (status && status !== "all") {
+      query.status = status;
+    }
+
+    if (city) {
+      query.city = { $regex: city, $options: "i" };
+    }
+
+    const pageNumber = Number(page);
+    const limitNumber = Number(limit);
+    const skip = (pageNumber - 1) * limitNumber;
+
+    const users = await User.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limitNumber);
+
+    const totalUsers = await User.countDocuments(query);
+
+    res.json({
+      users,
+      pagination: {
+        totalUsers,
+        totalPages: Math.ceil(totalUsers / limitNumber),
+        currentPage: pageNumber,
+        hasPrevPage: pageNumber > 1,
+        hasNextPage: pageNumber < Math.ceil(totalUsers / limitNumber),
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Server Error", error: error.message });
+  }
+};
+
+const getUserById = asyncHandler(async (req, res) => {
+  if (!req.params.id.match(/^[0-9a-fA-F]{24}$/)) {
+    res.status(400);
+    throw new Error("Invalid user ID format");
+  }
+  const user = await User.findById(req.params.id).select("-password");
+  if (user) {
+    res.json(user);
+  } else {
+    res.status(404);
+    throw new Error("User not found");
+  }
+});
+
+const updateUser = asyncHandler(async (req, res) => {
+  if (!req.params.id.match(/^[0-9a-fA-F]{24}$/)) {
+    res.status(400);
+    throw new Error("Invalid user ID format");
+  }
+  const user = await User.findById(req.params.id);
+
+  if (!user) {
+    res.status(404);
+    throw new Error("User not found");
+  }
+
+  if (
+    req.user.role !== "admin" &&
+    user._id.toString() !== req.user._id.toString()
+  ) {
+    res.status(403);
+    throw new Error("Not authorized to update this user's profile.");
+  }
+
+  user.email = req.body.email || user.email;
+  user.phone = req.body.phone || user.phone;
+
+  if (req.body.password) {
+    if (req.body.password.length < 6) {
+      res.status(400);
+      throw new Error("Password must be at least 6 characters long");
+    }
+    user.password = req.body.password;
+  }
+
+  // Handle file uploads
+  if (req.files) {
+    if (req.files.photo) user.photoUrl = req.files.photo[0].location;
+    if (req.files.shopImage)
+      user.shopImageUrl = req.files.shopImage[0].location;
+    if (req.files.businessCertification)
+      user.businessCertificationUrl =
+        req.files.businessCertification[0].location;
+    if (req.files.portfolio)
+      user.portfolioUrl = req.files.portfolio[0].location;
+  }
+
+  switch (user.role) {
+    case "user":
+    case "admin":
+      user.name = req.body.name || user.name;
+      break;
+    case "professional":
+      user.name = req.body.name || user.name;
+      user.profession = req.body.profession || user.profession;
+      user.city = req.body.city || user.city;
+      user.experience = req.body.experience || user.experience;
+      // --- NEW: Bank details update ---
+      user.bankName = req.body.bankName || user.bankName; // <--- ADDED
+      user.bankAccountNumber =
+        req.body.bankAccountNumber || user.bankAccountNumber;
+      user.ifscCode = req.body.ifscCode || user.ifscCode;
+      user.upiId = req.body.upiId || user.upiId;
+      break;
+    case "seller":
+      user.businessName = req.body.businessName || user.businessName;
+      user.address = req.body.address || user.address;
+      user.city = req.body.city || user.city;
+      user.materialType = req.body.materialType || user.materialType;
+      break;
+    case "Contractor":
+      user.name = req.body.name || user.name;
+      user.companyName = req.body.companyName || user.companyName;
+      user.address = req.body.address || user.address;
+      user.city = req.body.city || user.city;
+      user.experience = req.body.experience || user.experience;
+      user.profession = req.body.profession || user.profession;
+      if (req.body.contractorType) {
+        user.contractorType = req.body.contractorType;
+      }
+      break;
+  }
+
+  if (req.user.role === "admin") {
+    if (req.body.status) {
+      user.status = req.body.status;
+      user.isApproved = req.body.status === "Approved";
+    }
+    if (req.body.isApproved !== undefined) {
+      user.isApproved = req.body.isApproved;
+      user.status = req.body.isApproved ? "Approved" : "Pending";
+    }
+  }
+
+  const updatedUser = await user.save();
+
+  res.json({
+    _id: updatedUser._id,
+    name: getUserDisplayName(updatedUser),
+    email: updatedUser.email,
+    phone: updatedUser.phone,
+    role: updatedUser.role,
+    isApproved: updatedUser.isApproved,
+    status: updatedUser.status,
+    businessName: updatedUser.businessName,
+    companyName: updatedUser.companyName,
+    profession: updatedUser.profession,
+    experience: updatedUser.experience,
+    address: updatedUser.address,
+    city: updatedUser.city,
+    materialType: updatedUser.materialType,
+    photoUrl: updatedUser.photoUrl,
+    shopImageUrl: updatedUser.shopImageUrl,
+    businessCertificationUrl: updatedUser.businessCertificationUrl,
+    portfolioUrl: updatedUser.portfolioUrl,
+    bankName: updatedUser.bankName, // <--- ADDED to Response
+    bankAccountNumber: updatedUser.bankAccountNumber,
+    ifscCode: updatedUser.ifscCode,
+    upiId: updatedUser.upiId,
+    contractorType: updatedUser.contractorType,
+    token: generateToken(updatedUser._id),
+  });
+});
+
+const deleteUser = asyncHandler(async (req, res) => {
+  if (!req.params.id.match(/^[0-9a-fA-F]{24}$/)) {
+    res.status(400);
+    throw new Error("Invalid user ID format");
+  }
+  const user = await User.findById(req.params.id);
+  if (!user) {
+    res.status(404);
+    throw new Error("User not found");
+  }
+  if (user.role === "admin") {
+    res.status(400);
+    throw new Error("Cannot delete an admin user");
+  }
+  await User.findByIdAndDelete(req.params.id);
+  res.json({
+    message: "User removed successfully",
+    deletedUser: {
+      _id: user._id,
+      name: getUserDisplayName(user),
+      email: user.email,
+      role: user.role,
+    },
+  });
+});
+
+const getUserStats = asyncHandler(async (req, res) => {
+  const stats = await User.aggregate([
+    { $match: { role: { $ne: "admin" } } },
+    {
+      $group: {
+        _id: "$role",
+        count: { $sum: 1 },
+        approved: { $sum: { $cond: [{ $eq: ["$isApproved", true] }, 1, 0] } },
+        pending: { $sum: { $cond: [{ $eq: ["$status", "Pending"] }, 1, 0] } },
+      },
+    },
+  ]);
+  const totalUsers = await User.countDocuments({ role: { $ne: "admin" } });
+  res.json({ totalUsers, breakdown: stats });
+});
+
+const getSellerPublicProfile = asyncHandler(async (req, res) => {
+  const seller = await User.findById(req.params.sellerId).select(
+    "name businessName shopImageUrl city"
+  );
+
+  if (seller && seller.role === "seller") {
+    res.json(seller);
+  } else {
+    res.status(404);
+    throw new Error("Seller not found");
+  }
+});
+
+const forgotPassword = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+  const user = await User.findOne({ email });
+
+  if (!user) {
+    return res.json({
+      message: "Password reset link has been sent to your email.",
+    });
+  }
+
+  const resetToken = crypto.randomBytes(32).toString("hex");
+
+  user.passwordResetToken = crypto
+    .createHash("sha256")
+    .update(resetToken)
+    .digest("hex");
+
+  user.passwordResetExpires = Date.now() + 10 * 60 * 1000;
+
+  await user.save({ validateBeforeSave: false });
+
+  try {
+    const resetURL = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
+
+    const message = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Password Reset Request</title>
+      </head>
+      <body style="margin: 0; padding: 0; font-family: 'Arial', sans-serif; background-color: #f4f4f4;">
+        <table role="presentation" style="width: 100%; border-collapse: collapse;">
+          <tr>
+            <td align="center" style="padding: 40px 0;">
+              <table role="presentation" style="width: 600px; border-collapse: collapse; background-color: #ffffff; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); border-radius: 8px; overflow: hidden;">
+                <tr>
+                  <td style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 30px; text-align: center;">
+                    <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: bold;">
+                      🏠 HousePlansFiles
+                    </h1>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 40px 30px;">
+                    <h2 style="margin: 0 0 20px 0; color: #333333; font-size: 24px; font-weight: 600;">
+                      Password Reset Request
+                    </h2>
+                    <p style="margin: 0 0 20px 0; color: #666666; font-size: 16px; line-height: 1.6;">
+                      Hello <strong>${user.name || "User"}</strong>,
+                    </p>
+                    <p style="margin: 0 0 20px 0; color: #666666; font-size: 16px; line-height: 1.6;">
+                      We received a request to reset your password for your HousePlansFiles account. Click the button below to create a new password:
+                    </p>
+                    <table role="presentation" style="margin: 30px 0;">
+                      <tr>
+                        <td align="center">
+                          <a href="${resetURL}" style="display: inline-block; padding: 16px 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600; border-radius: 6px; box-shadow: 0 4px 6px rgba(102, 126, 234, 0.4);">
+                            Reset Password
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+                    <p style="margin: 20px 0; color: #666666; font-size: 14px; line-height: 1.6;">
+                      Or copy and paste this link into your browser:
+                    </p>
+                    <p style="margin: 0 0 20px 0; padding: 15px; background-color: #f8f9fa; border-left: 4px solid #667eea; color: #667eea; font-size: 14px; word-break: break-all; border-radius: 4px;">
+                      ${resetURL}
+                    </p>
+                    <div style="margin: 30px 0; padding: 20px; background-color: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;">
+                      <p style="margin: 0; color: #856404; font-size: 14px; line-height: 1.6;">
+                        ⚠️ <strong>Important:</strong> This link will expire in <strong>10 minutes</strong> for security reasons.
+                      </p>
+                    </div>
+                    <p style="margin: 20px 0 0 0; color: #666666; font-size: 14px; line-height: 1.6;">
+                      If you didn't request a password reset, please ignore this email or contact support if you have concerns.
+                    </p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="background-color: #f8f9fa; padding: 30px; text-align: center; border-top: 1px solid #e9ecef;">
+                    <p style="margin: 0 0 10px 0; color: #999999; font-size: 14px;">
+                      Best regards,<br>
+                      <strong>The HousePlansFiles Team</strong>
+                    </p>
+                    <p style="margin: 10px 0 0 0; color: #999999; font-size: 12px;">
+                      © ${new Date().getFullYear()} HousePlansFiles. All rights reserved.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+      </html>
+    `;
+
+    await sendEmail({
+      to: user.email,
+      subject: "🔐 HousePlansFiles - Password Reset Request",
+      html: message,
+    });
+
+    res.json({ message: "Password reset link has been sent to your email." });
+  } catch (error) {
+    console.error("DETAILED NODEMAILER ERROR:", error);
+
+    user.passwordResetToken = undefined;
+    user.passwordResetExpires = undefined;
+    await user.save({ validateBeforeSave: false });
+
+    res.status(500);
+    throw new Error("Email could not be sent. Please try again later.");
+  }
+});
+
+const resetPassword = asyncHandler(async (req, res) => {
+  const { password } = req.body;
+  const { token } = req.params;
+
+  if (!password || password.length < 6) {
+    res.status(400);
+    throw new Error(
+      "Password is required and must be at least 6 characters long."
+    );
+  }
+
+  const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+
+  const user = await User.findOne({
+    passwordResetToken: hashedToken,
+    passwordResetExpires: { $gt: Date.now() },
+  });
+
+  if (!user) {
+    res.status(400);
+    throw new Error("Token is invalid or has expired.");
+  }
+
+  user.password = password;
+  user.passwordResetToken = undefined;
+  user.passwordResetExpires = undefined;
+
+  await user.save();
+
+  res.json({ message: "Password has been reset successfully. Please login." });
+});
+
+module.exports = {
+  registerUser,
+  loginUser,
+  getAllUsers,
+  getUserById,
+  updateUser,
+  deleteUser,
+  getUserStats,
+  createUserByAdmin,
+  getSellerPublicProfile,
+  forgotPassword,
+  resetPassword,
+};
