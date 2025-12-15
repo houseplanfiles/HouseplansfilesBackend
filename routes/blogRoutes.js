@@ -1,5 +1,3 @@
-// routes/blogRoutes.js
-
 const express = require("express");
 const router = express.Router();
 const {
@@ -15,7 +13,7 @@ const upload = require("../middleware/uploadMiddleware.js");
 
 // --- Public Routes ---
 router.route("/").get(getPublishedPosts);
-router.route("/slug/:slug").get(getPostBySlug); // Changed to avoid conflict with ID
+router.route("/slug/:slug").get(getPostBySlug);
 
 // --- Admin Routes ---
 router.route("/all").get(protect, admin, getAllPostsAdmin);
