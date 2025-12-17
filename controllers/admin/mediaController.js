@@ -22,30 +22,33 @@ const getAllProductsForMedia = asyncHandler(async (req, res) => {
   const products = await Product.find(query)
     .sort({ createdAt: -1 })
     .limit(pageSize)
-    .skip(pageSize * (page - 1))
-    .select(
-      "name Name productNo SKU mainImage Images planFile planType " +
-        '"Download 1 URL"'
-    );
+    .skip(pageSize * (page - 1));
 
   const formattedProducts = products.map((p) => {
     const doc = p._doc;
 
-    // Images string se pehli image nikalne ka logic
     const firstImageFromImagesField =
       doc.Images && typeof doc.Images === "string"
         ? doc.Images.split(",")[0].trim()
         : null;
 
-    // Main Image ke liye fallback
     const mainImage = doc.mainImage || firstImageFromImagesField;
 
-    // Plan File ke liye fallback
-    let planFile = null;
-    if (doc.planFile && doc.planFile.length > 0) {
-      planFile = doc.planFile[0];
+    let planFile = [];
+
+    if (
+      doc.planFile &&
+      Array.isArray(doc.planFile) &&
+      doc.planFile.length > 0
+    ) {
+      planFile = doc.planFile;
     } else {
-      planFile = doc["Download 1 URL"] || firstImageFromImagesField;
+      for (let i = 1; i <= 7; i++) {
+        const key = `Download ${i} URL`;
+        if (doc[key]) {
+          planFile.push(doc[key]);
+        }
+      }
     }
 
     return {
@@ -54,7 +57,7 @@ const getAllProductsForMedia = asyncHandler(async (req, res) => {
       productNo: doc.productNo || doc.SKU || "N/A",
       planType: doc.planType || "N/A",
       mainImage: mainImage,
-      planFile: planFile ? [planFile] : [],
+      planFile: planFile,
     };
   });
 
