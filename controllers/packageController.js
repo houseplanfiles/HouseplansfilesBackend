@@ -42,12 +42,13 @@ const getPackages = async (req, res) => {
   }
 };
 
-// एक पैकेज को ID से प्राप्त करने के लिए
 const getPackageById = async (req, res) => {
   try {
     const pkg = await Package.findById(req.params.id);
     if (!pkg) {
-      return res.status(404).json({ success: false, message: "Package not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Package not found" });
     }
     res.status(200).json({ success: true, data: pkg });
   } catch (error) {
@@ -59,7 +60,6 @@ const getPackageById = async (req, res) => {
   }
 };
 
-// एक पैकेज को अपडेट करने के लिए
 const updatePackage = async (req, res) => {
   try {
     const updatedPackage = await Package.findByIdAndUpdate(
@@ -68,7 +68,9 @@ const updatePackage = async (req, res) => {
       { new: true, runValidators: true }
     );
     if (!updatedPackage) {
-      return res.status(404).json({ success: false, message: "Package not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Package not found" });
     }
     res.status(200).json({
       success: true,
@@ -84,14 +86,17 @@ const updatePackage = async (req, res) => {
   }
 };
 
-// एक पैकेज को हटाने के लिए
 const deletePackage = async (req, res) => {
   try {
     const deletedPackage = await Package.findByIdAndDelete(req.params.id);
     if (!deletedPackage) {
-      return res.status(404).json({ success: false, message: "Package not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Package not found" });
     }
-    res.status(200).json({ success: true, message: "Package deleted successfully" });
+    res
+      .status(200)
+      .json({ success: true, message: "Package deleted successfully" });
   } catch (error) {
     res.status(500).json({
       success: false,
@@ -101,7 +106,6 @@ const deletePackage = async (req, res) => {
   }
 };
 
-// सभी फंक्शन्स को एक्सपोर्ट करें
 module.exports = {
   createPackage,
   getPackages,
