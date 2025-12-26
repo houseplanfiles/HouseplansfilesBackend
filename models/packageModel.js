@@ -26,7 +26,12 @@ const packageSchema = new mongoose.Schema(
     packageType: {
       type: String,
       required: true,
-      enum: ["standard", "premium"], 
+      enum: [
+        "standard",
+        "premium",
+        "marketplace",
+        "city_partner",
+      ],
     },
     features: {
       type: [String],
@@ -46,4 +51,4 @@ const packageSchema = new mongoose.Schema(
 
 const Package = mongoose.model("Package", packageSchema);
 
-module.exports = Package; 
+module.exports = Package;
