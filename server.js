@@ -27,6 +27,8 @@ const sellerinquiryRoutes = require("./routes/sellerinquiryRoutes.js");
 const mediaRoutes = require("./routes/mediaRoutes.js");
 const shareRoutes = require("./routes/shareRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
+const feedRoutes = require("./routes/feed.route");
+
 
 const { notFound, errorHandler } = require("./middleware/errorMiddleware");
 
@@ -101,6 +103,8 @@ app.use("/api/sellerinquiries", sellerinquiryRoutes);
 app.use("/api/media", mediaRoutes);
 app.use("/share", shareRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/feed", feedRoutes);
+
 
 // =====================
 // ERROR HANDLERS
