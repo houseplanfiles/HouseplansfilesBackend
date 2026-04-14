@@ -1,11 +1,9 @@
 const mongoose = require("mongoose");
-
 const generateOrderId = async () => {
   const { customAlphabet } = await import("nanoid");
   const nanoid = customAlphabet("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ", 8);
   return `HPF-${nanoid()}`;
 };
-
 const orderSchema = mongoose.Schema(
   {
     user: {
@@ -77,7 +75,5 @@ orderSchema.pre("save", async function (next) {
   }
   next();
 });
-
-const Order = mongoose.model("Order", orderSchema);
-
+const Order = mongoose.models.Order || mongoose.model("Order", orderSchema);
 module.exports = Order;

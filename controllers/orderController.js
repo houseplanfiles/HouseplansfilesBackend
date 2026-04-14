@@ -242,7 +242,8 @@ const updateOrderToPaidWithPaypal = asyncHandler(async (req, res) => {
 // ==========================================
 // PHONEPE V2 OAUTH TOKEN
 const getPhonePeAuthToken = async () => {
-  const tokenUrl = "https://api.phonepe.com/apis/hermes/v1/oauth/token";
+  const apiUrl = getEnv("PHONEPE_API_URL") || "https://api.phonepe.com/apis/hermes";
+  const tokenUrl = `${apiUrl}/v1/oauth/token`;
 
   const params = new URLSearchParams();
   params.append("grant_type", "client_credentials");
@@ -250,7 +251,7 @@ const getPhonePeAuthToken = async () => {
   params.append("client_secret", getEnv("PHONEPE_CLIENT_SECRET"));
 
   const config = {
-    headers: { 
+    headers: {
       "Content-Type": "application/x-www-form-urlencoded",
       "Accept": "application/json"
     },
@@ -258,10 +259,10 @@ const getPhonePeAuthToken = async () => {
 
   try {
     const response = await axios.post(tokenUrl, params.toString(), config);
-    if(response.data && response.data.access_token) {
-        return response.data.access_token;
+    if (response.data && response.data.access_token) {
+      return response.data.access_token;
     } else {
-        throw new Error("No access token in PhonePe response");
+      throw new Error("No access token in PhonePe response");
     }
   } catch (error) {
     const errorMsg = error.response?.data?.error_description || error.response?.data?.message || "OAuth Token Generation Failed";
@@ -275,8 +276,9 @@ const createPhonePePayment = asyncHandler(async (req, res) => {
   if (!order) return res.status(404).json({ message: "Order not found" });
 
   try {
-    const accessToken = await getPhonePeAuthToken();
     const merchantId = getEnv("PHONEPE_MERCHANT_ID");
+    const saltKey = getEnv("PHONEPE_CLIENT_SECRET");
+    const saltIndex = getEnv("PHONEPE_CLIENT_VERSION") || "1";
     const merchantTransactionId = `TXN${Date.now()}`;
     const amount = Math.round(order.totalPrice * 100);
 
@@ -299,11 +301,25 @@ const createPhonePePayment = asyncHandler(async (req, res) => {
     };
 
     const base64Payload = Buffer.from(JSON.stringify(payloadData)).toString("base64");
-    const payUrl = `https://api.phonepe.com/apis/hermes/pg/v1/pay`;
+    // UAT/SANDBOX URL (full URL has /pg-sandbox/ but hash uses /pg/v1/pay)
+    const payEndpoint = "/pg/v1/pay"; // Used for signature calculation
+    const payUrl = "https://api-preprod.phonepe.com/apis/pg-sandbox/pg/v1/pay"; // Actual request URL
+
+    console.log("DEBUG: PhonePe Payment Request");
+    console.log("DEBUG: URL:", payUrl);
+    console.log("DEBUG: MerchantID:", merchantId);
+    console.log("DEBUG: SaltIndex:", saltIndex);
+
+    const stringToHash = base64Payload + payEndpoint + saltKey;
+    const sha256 = crypto.createHash("sha256").update(stringToHash).digest("hex");
+    const xVerify = `${sha256}###${saltIndex}`;
+
+    console.log("DEBUG: X-Verify:", xVerify);
+
     const config = {
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${accessToken}`,
+        "X-VERIFY": xVerify,
         "X-MERCHANT-ID": merchantId,
       },
     };
@@ -337,10 +353,23 @@ const checkPhonePePaymentStatus = asyncHandler(async (req, res) => {
   const { merchantTransactionId } = req.params;
 
   try {
-    const accessToken = await getPhonePeAuthToken();
     const merchantId = getEnv("PHONEPE_MERCHANT_ID");
-    const statusUrl = `https://api.phonepe.com/apis/hermes/pg/v1/status/${merchantId}/${merchantTransactionId}`;
-    const config = { headers: { "Authorization": `Bearer ${accessToken}`, "X-MERCHANT-ID": merchantId } };
+    const saltKey = getEnv("PHONEPE_CLIENT_SECRET");
+    const saltIndex = getEnv("PHONEPE_CLIENT_VERSION") || "1";
+    // UAT/SANDBOX URL (hash uses /pg/v1/status but actual URL has /pg-sandbox/)
+    const statusEndpoint = `/pg/v1/status/${merchantId}/${merchantTransactionId}`; // For signature
+    const statusUrl = `https://api-preprod.phonepe.com/apis/pg-sandbox${statusEndpoint}`; // Actual URL
+
+    const stringToHash = statusEndpoint + saltKey;
+    const sha256 = crypto.createHash("sha256").update(stringToHash).digest("hex");
+    const xVerify = `${sha256}###${saltIndex}`;
+
+    const config = {
+      headers: {
+        "X-VERIFY": xVerify,
+        "X-MERCHANT-ID": merchantId
+      }
+    };
 
     const response = await axios.get(statusUrl, config);
 
@@ -381,6 +410,7 @@ const handlePhonePeWebhook = asyncHandler(async (req, res) => {
   }
   res.status(200).send("OK");
 });
+
 
 const getAllOrders = asyncHandler(async (req, res) => {
   const orders = await Order.find({})

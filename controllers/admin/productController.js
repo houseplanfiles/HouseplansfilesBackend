@@ -2,7 +2,7 @@
 
 const asyncHandler = require("express-async-handler");
 const Product = require("../../models/productModel.js");
-const User = require("../../models/userModel.js"); // === BADLAV 1: User model ko import kiya gaya ===
+const User = require("../../models/userModel.js");
 const axios = require("axios");
 
 const VERCEL_BUILD_HOOK_URL =
@@ -28,17 +28,21 @@ const normalizeToArray = (value) => {
   return [value];
 };
 
-// === BADLAV 2: Is function ko update kiya gaya hai ===
-// Ab yeh sirf 'professional' users ke products hi fetch karega.
+// === YAHAN BADLAV KIYA GAYA HAI ===
+// Ab yeh function 'admin' aur 'professional' dono ke published products fetch karega.
 const getAdminProducts = asyncHandler(async (req, res) => {
-  // 1. Sabhi 'professional' role wale users ki ID nikalo
-  const professionalUsers = await User.find({ role: "professional" }).select(
-    "_id"
-  );
-  const professionalUserIds = professionalUsers.map((user) => user._id);
+  // 1. Un sabhi users ki ID nikalo jinka role 'admin' ya 'professional' hai.
+  const allowedUsers = await User.find({
+    role: { $in: ["admin", "professional"] },
+  }).select("_id");
 
-  // 2. Sirf unhi products ko find karo jinka user in IDs mein se ek hai
-  const products = await Product.find({ user: { $in: professionalUserIds } })
+  const allowedUserIds = allowedUsers.map((user) => user._id);
+
+  // 2. Sirf unhi products ko find karo jo in users ne banaye hain AUR jinka status 'Published' hai.
+  const products = await Product.find({
+    user: { $in: allowedUserIds },
+    status: "Published", // Sirf published products dikhayein
+  })
     .populate("user", "name")
     .sort({ createdAt: -1 });
 

@@ -1,5 +1,3 @@
-// File: routes/admin/productRoutes.js
-
 const express = require("express");
 const router = express.Router();
 const {
@@ -13,7 +11,7 @@ const {
   deleteProduct,
   createProductReview,
   removeCsvImage,
-} = require("../controllers/admin/productController.js");
+} = require("../controllers/admin/productController.js"); // Assuming the controller is in a different path
 const {
   protect,
   admin,
@@ -28,8 +26,6 @@ const handleFileUploads = upload.fields([
   { name: "headerImage", maxCount: 1 },
 ]);
 
-router.route("/slug/:slug").get(getProductBySlug);
-
 router
   .route("/")
   .get(getProducts)
@@ -40,6 +36,8 @@ router.route("/admin").get(protect, admin, getAdminProducts);
 router
   .route("/myproducts")
   .get(protect, professionalOrAdminProtect, getMyProducts);
+
+router.route("/slug/:slug").get(getProductBySlug);
 
 router
   .route("/:id")

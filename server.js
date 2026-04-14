@@ -4,12 +4,12 @@ const cors = require("cors");
 const path = require("path");
 const connectDB = require("./config/db");
 
-// ROUTES
 const userRoutes = require("./routes/userRoutes");
 const productRoutes = require("./routes/productRoutes");
 const professionalPlanRoutes = require("./routes/professionalPlanRoutes");
 const customizationRequestRoutes = require("./routes/customizationRequestRoutes");
 const standardRequestRoutes = require("./routes/standardRequestRoutes");
+const { notFound, errorHandler } = require("./middleware/errorMiddleware");
 const premiumRequestRoutes = require("./routes/premiumRequestRoutes");
 const corporateInquiryRoutes = require("./routes/corporateInquiryRoutes");
 const inquiryRoutes = require("./routes/inquiryRoutes.js");
@@ -28,55 +28,23 @@ const mediaRoutes = require("./routes/mediaRoutes.js");
 const shareRoutes = require("./routes/shareRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 const feedRoutes = require("./routes/feed.route");
-
-
-const { notFound, errorHandler } = require("./middleware/errorMiddleware");
-
 dotenv.config();
 connectDB();
 
 const app = express();
 
-// =====================
-// BODY PARSER
-// =====================
-app.use(express.json());
-
-// =====================
-// ✅ CORS (FIXED)
-// =====================
+// ✅ CORS FIXED — only this part changed
 app.use(
   cors({
-    origin: [
-      "https://www.houseplanfiles.com",
-      "https://houseplansfilesfrontend.vercel.app",
-    ],
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    origin: ["https://www.houseplanfiles.com", "http://localhost:8080"],
     credentials: true,
   })
 );
 
-// ======================
-// 🔥 LOGGING MIDDLEWARE
-// ======================
-app.use((req, res, next) => {
-  console.log("===== NEW REQUEST =====");
-  console.log("Method:", req.method);
-  console.log("URL:", req.originalUrl);
-  console.log("Body:", req.body);
-  console.log("=======================");
-  next();
-});
+app.use(express.json());
 
-// =====================
-// STATIC FILES
-// =====================
 app.use("/uploads", express.static(path.join(__dirname, "/uploads")));
 
-// ==============================
-// ROUTES
-// ==============================
 app.get("/", (req, res) => {
   res.send("API is running...");
 });
@@ -105,20 +73,9 @@ app.use("/share", shareRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/feed", feedRoutes);
 
-
-// =====================
-// ERROR HANDLERS
-// =====================
 app.use(notFound);
 app.use(errorHandler);
 
-// =====================
-// PORT (Local only)
-// =====================
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
-
-module.exports = app; // 👈 REQUIRED for Vercel
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

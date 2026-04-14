@@ -8,12 +8,12 @@ const inquirySchema = mongoose.Schema(
       ref: "User",
     },
     recipientInfo: {
-      name: { type: String, required: true }, 
-      role: { type: String, required: true }, 
+      name: { type: String, required: true },
+      role: { type: String, required: true },
       phone: { type: String },
       city: { type: String },
       address: { type: String },
-      detail: { type: String }, 
+      detail: { type: String },
     },
     senderName: {
       type: String,
@@ -47,6 +47,7 @@ const inquirySchema = mongoose.Schema(
   }
 );
 
-const Inquiry = mongoose.model("Inquiry", inquirySchema);
+const Inquiry =
+  mongoose.models.Inquiry || mongoose.model("Inquiry", inquirySchema);
 
 module.exports = Inquiry;

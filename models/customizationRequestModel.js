@@ -2,10 +2,9 @@ const mongoose = require("mongoose");
 
 const customizationRequestSchema = mongoose.Schema(
   {
-    // ++ CHANGE HERE: Added countryName field ++
     countryName: {
       type: String,
-      required: [true, "Country name is required."], // This was likely intended to be true to cause the error.
+      required: [true, "Country name is required."],
       trim: true,
     },
     requestType: {
@@ -30,7 +29,6 @@ const customizationRequestSchema = mongoose.Schema(
       type: String,
       required: true,
     },
-    // Form fields for different request types
     width: { type: String },
     length: { type: String },
     roomWidth: { type: String },
@@ -41,8 +39,6 @@ const customizationRequestSchema = mongoose.Schema(
     designFor: { type: String },
     description: { type: String },
     referenceFileUrl: { type: String },
-
-    // Admin fields
     status: {
       type: String,
       enum: ["Pending", "Contacted", "In Progress", "Completed", "Cancelled"],
@@ -54,13 +50,12 @@ const customizationRequestSchema = mongoose.Schema(
     },
   },
   {
-    timestamps: true, // Automatically adds createdAt and updatedAt fields
+    timestamps: true,
   }
 );
 
-const CustomizationRequest = mongoose.model(
-  "CustomizationRequest",
-  customizationRequestSchema
-);
+const CustomizationRequest =
+  mongoose.models.CustomizationRequest ||
+  mongoose.model("CustomizationRequest", customizationRequestSchema);
 
 module.exports = CustomizationRequest;

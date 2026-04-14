@@ -2,10 +2,7 @@ const mongoose = require("mongoose");
 
 const corporateInquirySchema = mongoose.Schema(
   {
-    companyName: {
-      type: String,
-      required: [true, "Company name is required"],
-    },
+    companyName: { type: String, required: [true, "Company name is required"] },
     contactPerson: {
       type: String,
       required: [true, "Contact person name is required"],
@@ -15,10 +12,7 @@ const corporateInquirySchema = mongoose.Schema(
       required: [true, "Work email is required"],
       match: [/.+\@.+\..+/, "Please fill a valid email address"],
     },
-    phoneNumber: {
-      type: String,
-      required: [true, "Phone number is required"],
-    },
+    phoneNumber: { type: String, required: [true, "Phone number is required"] },
     projectType: {
       type: String,
       required: true,
@@ -32,23 +26,19 @@ const corporateInquirySchema = mongoose.Schema(
       type: String,
       required: [true, "Project details are required"],
     },
-    projectBriefUrl: {
-      type: String,
-    },
+    projectBriefUrl: { type: String },
     status: {
       type: String,
       enum: ["New", "Contacted", "In Progress", "Closed"],
       default: "New",
     },
+    isRead: { type: Boolean, default: false },
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
 
 const CorporateInquiry = mongoose.model(
   "CorporateInquiry",
   corporateInquirySchema
 );
-
 module.exports = CorporateInquiry;

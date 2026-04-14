@@ -5,7 +5,6 @@ const premiumRequestSchema = mongoose.Schema(
     packageName: {
       type: String,
       required: [true, "Package name is required"],
-      // Example values
       enum: [
         "Premium Floor Plan",
         "Premium Floor Plan + 3D",
@@ -46,7 +45,6 @@ const premiumRequestSchema = mongoose.Schema(
       type: String,
       required: [true, "Project details are required"],
     },
-    // Fields for admin use
     status: {
       type: String,
       enum: ["Pending", "Contacted", "In Progress", "Completed", "Cancelled"],
@@ -61,6 +59,8 @@ const premiumRequestSchema = mongoose.Schema(
   }
 );
 
-const PremiumRequest = mongoose.model("PremiumRequest", premiumRequestSchema);
+const PremiumRequest =
+  mongoose.models.PremiumRequest ||
+  mongoose.model("PremiumRequest", premiumRequestSchema);
 
 module.exports = PremiumRequest;
