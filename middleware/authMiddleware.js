@@ -61,7 +61,11 @@ const admin = (req, res, next) => {
 };
 
 const professionalProtect = (req, res, next) => {
-  if (req.user && req.user.role === "professional") {
+  const isProfessional =
+    req.user &&
+    (req.user.role === "professional" || req.user.role === "Contractor");
+
+  if (isProfessional) {
     if (!req.user.isApproved) {
       res.status(403);
       throw new Error(
@@ -76,11 +80,17 @@ const professionalProtect = (req, res, next) => {
 };
 
 const professionalOrAdminProtect = (req, res, next) => {
-  if (
+  const isProfessionalOrAdmin =
     req.user &&
-    (req.user.role === "professional" || req.user.role === "admin")
-  ) {
-    if (req.user.role === "professional" && !req.user.isApproved) {
+    (req.user.role === "professional" ||
+      req.user.role === "Contractor" ||
+      req.user.role === "admin");
+
+  if (isProfessionalOrAdmin) {
+    if (
+      (req.user.role === "professional" || req.user.role === "Contractor") &&
+      !req.user.isApproved
+    ) {
       res.status(403);
       throw new Error(
         "Access Denied. Your professional account is pending admin approval."

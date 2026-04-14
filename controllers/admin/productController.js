@@ -33,7 +33,7 @@ const normalizeToArray = (value) => {
 const getAdminProducts = asyncHandler(async (req, res) => {
   // 1. Un sabhi users ki ID nikalo jinka role 'admin' ya 'professional' hai.
   const allowedUsers = await User.find({
-    role: { $in: ["admin", "professional"] },
+    role: { $in: ["admin", "professional", "Contractor"] },
   }).select("_id");
 
   const allowedUserIds = allowedUsers.map((user) => user._id);

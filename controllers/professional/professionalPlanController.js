@@ -78,7 +78,10 @@ const getPlanBySlug = asyncHandler(async (req, res) => {
 });
 
 const createPlan = asyncHandler(async (req, res) => {
-  if (req.user.role !== "professional" || !req.user.isApproved) {
+  if (
+    !["professional", "Contractor"].includes(req.user.role) ||
+    !req.user.isApproved
+  ) {
     res.status(403);
     throw new Error(
       "Access Denied. Only approved professionals can create plans."
