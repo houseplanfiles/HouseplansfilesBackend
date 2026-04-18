@@ -28,6 +28,7 @@ const mediaRoutes = require("./routes/mediaRoutes.js");
 const shareRoutes = require("./routes/shareRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 const feedRoutes = require("./routes/feed.route");
+const sellerDashboardRoutes = require("./routes/sellerDashboardRoutes");
 dotenv.config();
 connectDB();
 
@@ -72,6 +73,7 @@ app.use("/api/media", mediaRoutes);
 app.use("/share", shareRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/feed", feedRoutes);
+app.use("/api/seller-dashboard", sellerDashboardRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

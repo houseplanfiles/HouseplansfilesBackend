@@ -31,9 +31,25 @@ const userSchema = mongoose.Schema(
     companyName: { type: String },
     contractorType: {
       type: String,
-      enum: ["Normal", "Premium"],
+      enum: ["Normal", "Verified", "Premium"],
       default: "Normal",
     },
+
+    // --- NEW: Contractor Detailed Profile (For Premium) ---
+    coverPhotoUrl: { type: String },
+    packages: [
+      {
+        name: { type: String },
+        price: { type: String },
+        description: { type: String },
+      },
+    ],
+    workSamples: [
+      {
+        imageUrl: { type: String },
+        location: { type: String },
+      },
+    ],
 
     // --- NEW: Professional Bank & Payment Details ---
     bankName: { type: String }, // <--- ADDED: Bank Name Field

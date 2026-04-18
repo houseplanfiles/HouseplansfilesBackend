@@ -9,6 +9,7 @@ const {
   createUserByAdmin,
   getUserStats,
   getSellerPublicProfile,
+  getContractorPublicProfile,
   forgotPassword,
   resetPassword,
 } = require("../controllers/userController");
@@ -23,6 +24,7 @@ const handleUserUploads = upload.fields([
   { name: "businessCertification", maxCount: 1 },
   { name: "shopImage", maxCount: 1 },
   { name: "portfolio", maxCount: 1 }, // NEW: Portfolio PDF for professionals
+  { name: "coverPhoto", maxCount: 1 }, // NEW: Cover photo for contractors
 ]);
 
 router.post("/register", handleUserUploads, registerUser);
@@ -30,6 +32,7 @@ router.post("/login", loginUser);
 router.post("/forgot-password", forgotPassword);
 router.put("/reset-password/:token", resetPassword);
 router.get("/store/:sellerId", getSellerPublicProfile);
+router.get("/contractor/:id", getContractorPublicProfile); // NEW PUBLIC ROUTE
 router.route("/").get(getAllUsers);
 
 router

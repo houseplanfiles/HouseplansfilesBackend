@@ -336,6 +336,25 @@ const updateUser = asyncHandler(async (req, res) => {
         req.files.businessCertification[0].location;
     if (req.files.portfolio)
       user.portfolioUrl = req.files.portfolio[0].location;
+    if (req.files.coverPhoto)
+      user.coverPhotoUrl = req.files.coverPhoto[0].location;
+  }
+
+  // Handle packages and work samples (parsed from JSON if needed)
+  if (req.body.packages) {
+    try {
+      user.packages = JSON.parse(req.body.packages);
+    } catch (e) {
+      user.packages = req.body.packages;
+    }
+  }
+
+  if (req.body.workSamples) {
+    try {
+      user.workSamples = JSON.parse(req.body.workSamples);
+    } catch (e) {
+      user.workSamples = req.body.workSamples;
+    }
   }
 
   switch (user.role) {
@@ -411,6 +430,9 @@ const updateUser = asyncHandler(async (req, res) => {
     ifscCode: updatedUser.ifscCode,
     upiId: updatedUser.upiId,
     contractorType: updatedUser.contractorType,
+    coverPhotoUrl: updatedUser.coverPhotoUrl,
+    packages: updatedUser.packages,
+    workSamples: updatedUser.workSamples,
     token: generateToken(updatedUser._id),
   });
 });
@@ -455,6 +477,20 @@ const getUserStats = asyncHandler(async (req, res) => {
   ]);
   const totalUsers = await User.countDocuments({ role: { $ne: "admin" } });
   res.json({ totalUsers, breakdown: stats });
+});
+
+const getContractorPublicProfile = asyncHandler(async (req, res) => {
+  const contractor = await User.findById(req.params.id).select(
+    "name companyName photoUrl shopImageUrl city address experience profession contractorType coverPhotoUrl packages workSamples portfolioUrl role"
+  );
+
+  if (contractor && contractor.role && contractor.role.toLowerCase() === "contractor") {
+    res.json(contractor);
+  } else {
+    console.log("Contractor profile search failed for ID:", req.params.id, "Found:", !!contractor, "Role:", contractor?.role);
+    res.status(404);
+    throw new Error("Contractor not found or user is not a contractor");
+  }
 });
 
 const getSellerPublicProfile = asyncHandler(async (req, res) => {
@@ -630,6 +666,7 @@ module.exports = {
   getUserStats,
   createUserByAdmin,
   getSellerPublicProfile,
+  getContractorPublicProfile,
   forgotPassword,
   resetPassword,
 };
