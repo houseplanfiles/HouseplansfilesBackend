@@ -210,6 +210,27 @@ const getAllProductsForAdmin = asyncHandler(async (req, res) => {
   });
 });
 
+const getPublicProductById = asyncHandler(async (req, res) => {
+  const product = await SellerProduct.findById(req.params.id)
+    .populate("seller", "businessName photoUrl city");
+
+  if (product && product.isApproved) {
+    res.json(product);
+  } else {
+    res.status(404);
+    throw new Error("Product not found");
+  }
+});
+
+const getPublicProductsBySeller = asyncHandler(async (req, res) => {
+  const products = await SellerProduct.find({
+    seller: req.params.sellerId,
+    isApproved: true,
+  }).populate("seller", "businessName photoUrl city");
+
+  res.json(products);
+});
+
 module.exports = {
   createSellerProduct,
   getMyProducts,
@@ -219,4 +240,6 @@ module.exports = {
   getUniqueCategories,
   getAllPublicProducts,
   getAllProductsForAdmin,
+  getPublicProductsBySeller,
+  getPublicProductById,
 };

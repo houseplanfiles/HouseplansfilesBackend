@@ -9,6 +9,8 @@ const {
   getUniqueCategories,
   getAllPublicProducts,
   getAllProductsForAdmin,
+  getPublicProductsBySeller,
+  getPublicProductById,
 } = require("../controllers/sellerProductController.js");
 
 const {
@@ -24,6 +26,8 @@ const handleFileUploads = upload.fields([
 ]);
 
 router.get("/public/all", getAllPublicProducts);
+router.get("/public/seller/:sellerId", getPublicProductsBySeller);
+router.get("/public/:id", getPublicProductById);
 
 router.route("/admin/all").get(protect, admin, getAllProductsForAdmin);
 
