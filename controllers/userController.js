@@ -351,8 +351,31 @@ const updateUser = asyncHandler(async (req, res) => {
 
   if (req.body.workSamples) {
     try {
-      user.workSamples = JSON.parse(req.body.workSamples);
+      const parsedSamples = typeof req.body.workSamples === "string" 
+        ? JSON.parse(req.body.workSamples) 
+        : req.body.workSamples;
+      
+      // Map images from req.files to individual samples
+      if (req.files) {
+        parsedSamples.forEach((sample, index) => {
+          const fieldName = `workSample_images_${index}`;
+          if (req.files[fieldName]) {
+            const uploadedUrls = req.files[fieldName].map(f => f.location);
+            // If the sample already has some images, we might want to append or replace
+            // For now, let's set 'images' to the new uploads and 'imageUrl' to the first one
+            sample.images = uploadedUrls;
+            sample.imageUrl = uploadedUrls[0];
+          }
+          
+          // If features is a comma-separated string, convert to array
+          if (sample.features && typeof sample.features === "string") {
+            sample.features = sample.features.split(",").map(f => f.trim()).filter(f => f);
+          }
+        });
+      }
+      user.workSamples = parsedSamples;
     } catch (e) {
+      console.error("Error parsing workSamples:", e);
       user.workSamples = req.body.workSamples;
     }
   }

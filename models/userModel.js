@@ -46,8 +46,12 @@ const userSchema = mongoose.Schema(
     ],
     workSamples: [
       {
-        imageUrl: { type: String },
+        title: { type: String },
+        description: { type: String },
         location: { type: String },
+        imageUrl: { type: String },
+        images: [{ type: String }],
+        features: [{ type: String }],
       },
     ],
 

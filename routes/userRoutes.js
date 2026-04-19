@@ -23,8 +23,18 @@ const handleUserUploads = upload.fields([
   { name: "photo", maxCount: 1 },
   { name: "businessCertification", maxCount: 1 },
   { name: "shopImage", maxCount: 1 },
-  { name: "portfolio", maxCount: 1 }, // NEW: Portfolio PDF for professionals
-  { name: "coverPhoto", maxCount: 1 }, // NEW: Cover photo for contractors
+  { name: "portfolio", maxCount: 1 },
+  { name: "coverPhoto", maxCount: 1 },
+  { name: "workSample_images_0", maxCount: 5 },
+  { name: "workSample_images_1", maxCount: 5 },
+  { name: "workSample_images_2", maxCount: 5 },
+  { name: "workSample_images_3", maxCount: 5 },
+  { name: "workSample_images_4", maxCount: 5 },
+  { name: "workSample_images_5", maxCount: 5 },
+  { name: "workSample_images_6", maxCount: 5 },
+  { name: "workSample_images_7", maxCount: 5 },
+  { name: "workSample_images_8", maxCount: 5 },
+  { name: "workSample_images_9", maxCount: 5 },
 ]);
 
 router.post("/register", handleUserUploads, registerUser);
