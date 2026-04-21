@@ -14,7 +14,6 @@ const {
   resetPassword,
   addProjectReview,
   updateProjectSEO,
-  getAllContractorProjects,
 } = require("../controllers/userController");
 
 const upload = require("../middleware/uploadMiddleware");
@@ -38,11 +37,6 @@ const handleUserUploads = upload.fields([
   { name: "workSample_images_7", maxCount: 5 },
   { name: "workSample_images_8", maxCount: 5 },
   { name: "workSample_images_9", maxCount: 5 },
-  { name: "package_pdf_0", maxCount: 1 },
-  { name: "package_pdf_1", maxCount: 1 },
-  { name: "package_pdf_2", maxCount: 1 },
-  { name: "package_pdf_3", maxCount: 1 },
-  { name: "package_pdf_4", maxCount: 1 },
 ]);
 
 router.post("/register", handleUserUploads, registerUser);
@@ -53,7 +47,6 @@ router.get("/store/:sellerId", getSellerPublicProfile);
 router.get("/contractor/:id", getContractorPublicProfile); // NEW PUBLIC ROUTE
 router.post("/contractors/:id/reviews", protect, addProjectReview);
 router.put("/contractors/:id/seo", protect, admin, updateProjectSEO); // ADMIN ONLY
-router.get("/admin/contractor-projects", protect, admin, getAllContractorProjects); // NEW ADMIN PROJECT LIST
 router.route("/").get(getAllUsers);
 
 router
