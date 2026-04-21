@@ -192,7 +192,7 @@ const loginUser = asyncHandler(async (req, res) => {
 
   if (user && (await user.matchPassword(password))) {
     if (
-      ["professional", "seller", "Contractor"].includes(user.role) &&
+      ["professional", "seller", "contractor"].includes(user.role.toLowerCase()) &&
       !user.isApproved
     ) {
       res.status(403);
@@ -215,11 +215,13 @@ const loginUser = asyncHandler(async (req, res) => {
       city: user.city,
       photoUrl: user.photoUrl,
       contractorType: user.contractorType,
-      // Bank Details in Login Response
-      bankName: user.bankName, // <--- ADDED
+      bankName: user.bankName,
       bankAccountNumber: user.bankAccountNumber,
       ifscCode: user.ifscCode,
       upiId: user.upiId,
+      packages: user.packages,
+      workSamples: user.workSamples,
+      coverPhotoUrl: user.coverPhotoUrl,
       token: generateToken(user._id),
     });
   } else {
@@ -230,7 +232,15 @@ const loginUser = asyncHandler(async (req, res) => {
 
 const getAllUsers = async (req, res) => {
   try {
-    const { page = 1, limit = 10, search, role, status, city } = req.query;
+    const { 
+      page = 1, 
+      limit = 10, 
+      search, 
+      role, 
+      status, 
+      city, 
+      contractorType 
+    } = req.query;
 
     const query = {};
 
@@ -253,6 +263,10 @@ const getAllUsers = async (req, res) => {
 
     if (city) {
       query.city = { $regex: city, $options: "i" };
+    }
+
+    if (contractorType && contractorType !== "all") {
+      query.contractorType = contractorType;
     }
 
     const pageNumber = Number(page);
@@ -343,8 +357,22 @@ const updateUser = asyncHandler(async (req, res) => {
   // Handle packages and work samples (parsed from JSON if needed)
   if (req.body.packages) {
     try {
-      user.packages = JSON.parse(req.body.packages);
+      const parsedPackages = typeof req.body.packages === "string"
+        ? JSON.parse(req.body.packages)
+        : req.body.packages;
+      
+      // Map PDFs from req.files to individual packages
+      if (req.files) {
+        parsedPackages.forEach((pkg, index) => {
+          const fieldName = `package_pdf_${index}`;
+          if (req.files[fieldName]) {
+            pkg.pdfUrl = req.files[fieldName][0].location;
+          }
+        });
+      }
+      user.packages = parsedPackages;
     } catch (e) {
+      console.error("Error parsing packages:", e);
       user.packages = req.body.packages;
     }
   }
@@ -380,7 +408,8 @@ const updateUser = asyncHandler(async (req, res) => {
     }
   }
 
-  switch (user.role) {
+  const userRole = user.role.toLowerCase();
+  switch (userRole) {
     case "user":
     case "admin":
       user.name = req.body.name || user.name;
@@ -403,12 +432,21 @@ const updateUser = asyncHandler(async (req, res) => {
       user.city = req.body.city || user.city;
       user.materialType = req.body.materialType || user.materialType;
       break;
-    case "Contractor":
+    case "contractor":
       user.name = req.body.name || user.name;
       user.companyName = req.body.companyName || user.companyName;
-      user.address = req.body.address || user.address;
-      user.city = req.body.city || user.city;
       user.experience = req.body.experience || user.experience;
+      user.city = req.body.city || user.city;
+      user.address = req.body.address || user.address;
+      
+      // Premium fields for administrators or manual updates
+      if (req.body.contractorType) {
+        user.contractorType = req.body.contractorType;
+      }
+      
+      if (req.body.premiumExpiresAt !== undefined) {
+        user.premiumExpiresAt = req.body.premiumExpiresAt;
+      }
       user.profession = req.body.profession || user.profession;
       if (req.body.contractorType) {
         user.contractorType = req.body.contractorType;
@@ -486,6 +524,8 @@ const deleteUser = asyncHandler(async (req, res) => {
   });
 });
 
+const SellerProduct = require("../models/sellerProductModel.js");
+
 const getUserStats = asyncHandler(async (req, res) => {
   const stats = await User.aggregate([
     { $match: { role: { $ne: "admin" } } },
@@ -498,8 +538,63 @@ const getUserStats = asyncHandler(async (req, res) => {
       },
     },
   ]);
-  const totalUsers = await User.countDocuments({ role: { $ne: "admin" } });
-  res.json({ totalUsers, breakdown: stats });
+
+  // Aggregate contractor project count (workSamples)
+  const contractorStats = await User.aggregate([
+    { $match: { role: { $regex: /^contractor$/i } } },
+    {
+      $group: {
+        _id: null,
+        totalProjects: { $sum: { $size: { $ifNull: ["$workSamples", []] } } }
+      }
+    }
+  ]);
+
+  const totalSellerProducts = await SellerProduct.countDocuments();
+  const totalUsers = await User.countDocuments({ role: "user" });
+  const totalProfessionals = await User.countDocuments({ role: "professional" });
+  const totalContractors = await User.countDocuments({ role: { $regex: /^contractor$/i } });
+  const totalSellers = await User.countDocuments({ role: "seller" });
+
+  res.json({ 
+    totalUsers,
+    totalProfessionals,
+    totalContractors,
+    totalSellers,
+    totalContractorProjects: contractorStats[0]?.totalProjects || 0,
+    totalSellerProducts,
+    breakdown: stats 
+  });
+});
+
+// @desc    Get all contractor projects for admin
+// @route   GET /api/users/admin/contractor-projects
+// @access  Private/Admin
+const getAllContractorProjects = asyncHandler(async (req, res) => {
+  // Case-insensitive role check
+  const contractors = await User.find({ 
+    role: { $regex: /^contractor$/i } 
+  }).select("name workSamples");
+  
+  console.log(`Debug: Found ${contractors.length} contractors for projects list.`);
+
+  let allProjects = [];
+  contractors.forEach(contractor => {
+    if (contractor.workSamples && contractor.workSamples.length > 0) {
+      contractor.workSamples.forEach((sample, sampleIdx) => {
+        const projectObj = sample.toObject ? sample.toObject() : sample;
+        allProjects.push({
+          ...projectObj,
+          contractorId: contractor._id,
+          contractorName: contractor.name,
+          projectIndex: sampleIdx
+        });
+      });
+    }
+  });
+
+  console.log(`Debug: Total projects gathered: ${allProjects.length}`);
+  res.json(allProjects);
 });
 
 const getContractorPublicProfile = asyncHandler(async (req, res) => {
@@ -746,4 +841,5 @@ module.exports = {
   resetPassword,
   addProjectReview,
   updateProjectSEO,
+  getAllContractorProjects,
 };

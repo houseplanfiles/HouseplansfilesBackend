@@ -11,6 +11,8 @@ const PremiumRequest = require("../models/premiumRequestModel");
 const CorporateInquiry = require("../models/corporateInquiryModel");
 const Inquiry = require("../models/inquiryModel");
 
+const SellerProduct = require("../models/sellerProductModel");
+
 // --- Dashboard ---
 const getDashboardSummary = asyncHandler(async (req, res) => {
   const totalOrders = await Order.countDocuments({});
@@ -22,6 +24,17 @@ const getDashboardSummary = asyncHandler(async (req, res) => {
     totalRevenueResult.length > 0 ? totalRevenueResult[0].totalRevenue : 0;
 
   const totalCustomers = await User.countDocuments({ role: "user" });
+  const totalContractors = await User.countDocuments({ role: { $regex: /^contractor$/i } });
+  const totalProfessionals = await User.countDocuments({ role: "professional" });
+  const totalSellers = await User.countDocuments({ role: "seller" });
+
+  const contractorProjectStats = await User.aggregate([
+    { $match: { role: { $regex: /^contractor$/i } } },
+    { $group: { _id: null, total: { $sum: { $size: { $ifNull: ["$workSamples", []] } } } } }
+  ]);
+  const totalContractorProjects = contractorProjectStats[0]?.total || 0;
+  const totalSellerProducts = await SellerProduct.countDocuments({});
+  
   const totalProducts = await Product.countDocuments({});
   const totalProfessionalPlans = await ProfessionalPlan.countDocuments({
     status: { $in: ["Approved", "Published"] },
@@ -36,6 +49,11 @@ const getDashboardSummary = asyncHandler(async (req, res) => {
     totalOrders,
     totalRevenue,
     totalCustomers,
+    totalContractors,
+    totalProfessionals,
+    totalSellers,
+    totalContractorProjects,
+    totalSellerProducts,
     totalProducts: totalProducts + totalProfessionalPlans,
     recentOrders,
   });
