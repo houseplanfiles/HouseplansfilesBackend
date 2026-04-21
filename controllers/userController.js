@@ -647,6 +647,33 @@ const forgotPassword = asyncHandler(async (req, res) => {
   }
 });
 
+const addProjectReview = asyncHandler(async (req, res) => {
+  const { rating, comment, projectIdx } = req.body;
+  const user = await User.findById(req.params.id);
+
+  if (user) {
+    const project = user.workSamples[Number(projectIdx)];
+    if (!project) {
+      res.status(404);
+      throw new Error("Project not found");
+    }
+
+    const review = {
+      name: req.user.name,
+      rating: Number(rating),
+      comment,
+      user: req.user._id,
+    };
+
+    project.reviews.push(review);
+    await user.save();
+    res.status(201).json({ message: "Review added successfully" });
+  } else {
+    res.status(404);
+    throw new Error("Contractor not found");
+  }
+});
+
 const resetPassword = asyncHandler(async (req, res) => {
   const { password } = req.body;
   const { token } = req.params;
@@ -679,6 +706,31 @@ const resetPassword = asyncHandler(async (req, res) => {
   res.json({ message: "Password has been reset successfully. Please login." });
 });
 
+const updateProjectSEO = asyncHandler(async (req, res) => {
+  const { projectIdx, seo } = req.body;
+  const user = await User.findById(req.params.id);
+
+  if (user) {
+    const project = user.workSamples[Number(projectIdx)];
+    if (!project) {
+      res.status(404);
+      throw new Error("Project not found");
+    }
+
+    project.seo = {
+      title: seo.title || "",
+      description: seo.description || "",
+      keywords: Array.isArray(seo.keywords) ? seo.keywords : (seo.keywords?.split(",").map((k) => k.trim()) || []),
+    };
+
+    await user.save();
+    res.status(200).json({ message: "SEO updated successfully" });
+  } else {
+    res.status(404);
+    throw new Error("User not found");
+  }
+});
+
 module.exports = {
   registerUser,
   loginUser,
@@ -692,4 +744,6 @@ module.exports = {
   getContractorPublicProfile,
   forgotPassword,
   resetPassword,
+  addProjectReview,
+  updateProjectSEO,
 };

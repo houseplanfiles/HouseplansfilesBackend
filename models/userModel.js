@@ -34,6 +34,7 @@ const userSchema = mongoose.Schema(
       enum: ["Normal", "Verified", "Premium"],
       default: "Normal",
     },
+    premiumExpiresAt: { type: Date, default: null },
 
     // --- NEW: Contractor Detailed Profile (For Premium) ---
     coverPhotoUrl: { type: String },
@@ -52,6 +53,20 @@ const userSchema = mongoose.Schema(
         imageUrl: { type: String },
         images: [{ type: String }],
         features: [{ type: String }],
+        reviews: [
+          {
+            user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+            name: { type: String },
+            rating: { type: Number, required: true },
+            comment: { type: String, required: true },
+            createdAt: { type: Date, default: Date.now },
+          },
+        ],
+        seo: {
+          title: { type: String, default: "" },
+          description: { type: String, default: "" },
+          keywords: [{ type: String }],
+        },
       },
     ],
 

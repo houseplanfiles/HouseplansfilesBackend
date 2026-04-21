@@ -12,6 +12,8 @@ const {
   getContractorPublicProfile,
   forgotPassword,
   resetPassword,
+  addProjectReview,
+  updateProjectSEO,
 } = require("../controllers/userController");
 
 const upload = require("../middleware/uploadMiddleware");
@@ -43,6 +45,8 @@ router.post("/forgot-password", forgotPassword);
 router.put("/reset-password/:token", resetPassword);
 router.get("/store/:sellerId", getSellerPublicProfile);
 router.get("/contractor/:id", getContractorPublicProfile); // NEW PUBLIC ROUTE
+router.post("/contractors/:id/reviews", protect, addProjectReview);
+router.put("/contractors/:id/seo", protect, admin, updateProjectSEO); // ADMIN ONLY
 router.route("/").get(getAllUsers);
 
 router

@@ -29,8 +29,12 @@ const shareRoutes = require("./routes/shareRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 const feedRoutes = require("./routes/feed.route");
 const sellerDashboardRoutes = require("./routes/sellerDashboardRoutes");
+const startPremiumExpiryCron = require("./crons/premiumExpiry");
 dotenv.config();
 connectDB();
+
+// Start cron jobs
+startPremiumExpiryCron();
 
 const app = express();
 
