@@ -104,9 +104,19 @@ const deleteInquiry = asyncHandler(async (req, res) => {
   }
 });
 
+// @desc    Get inquiries for the currently logged in recipient (Professional/Contractor)
+// @route   GET /api/inquiries/my
+// @access  Private
+const getMyInquiries = asyncHandler(async (req, res) => {
+  const inquiries = await Inquiry.find({ recipient: req.user._id })
+    .sort({ createdAt: -1 });
+  res.json(inquiries);
+});
+
 module.exports = {
   createInquiry,
   getAllInquiries,
+  getMyInquiries,
   updateInquiryStatus,
   deleteInquiry,
 };
