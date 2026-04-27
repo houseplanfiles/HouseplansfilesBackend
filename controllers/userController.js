@@ -426,12 +426,18 @@ const updateUser = asyncHandler(async (req, res) => {
       user.ifscCode = req.body.ifscCode || user.ifscCode;
       user.upiId = req.body.upiId || user.upiId;
       break;
-    case "seller":
-      user.businessName = req.body.businessName || user.businessName;
-      user.address = req.body.address || user.address;
-      user.city = req.body.city || user.city;
-      user.materialType = req.body.materialType || user.materialType;
-      break;
+      case "seller":
+        user.businessName = req.body.name || req.body.businessName || user.businessName;
+        user.address = req.body.address || user.address;
+        user.city = req.body.city || user.city;
+        user.materialType = req.body.materialType || user.materialType;
+        if (req.body.contractorType) {
+          user.contractorType = req.body.contractorType;
+        }
+        if (req.body.premiumExpiresAt !== undefined) {
+          user.premiumExpiresAt = req.body.premiumExpiresAt;
+        }
+        break;
     case "contractor":
       user.name = req.body.name || user.name;
       user.companyName = req.body.companyName || user.companyName;

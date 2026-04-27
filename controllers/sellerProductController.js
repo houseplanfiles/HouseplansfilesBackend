@@ -169,7 +169,7 @@ const getAllPublicProducts = asyncHandler(async (req, res) => {
 
   const count = await SellerProduct.countDocuments(filter);
   const products = await SellerProduct.find(filter)
-    .populate("seller", "businessName photoUrl")
+    .populate("seller", "businessName photoUrl contractorType role")
     .sort({ createdAt: -1 })
     .limit(limit)
     .skip(limit * (page - 1));
@@ -212,7 +212,7 @@ const getAllProductsForAdmin = asyncHandler(async (req, res) => {
 
 const getPublicProductById = asyncHandler(async (req, res) => {
   const product = await SellerProduct.findById(req.params.id)
-    .populate("seller", "businessName photoUrl city");
+    .populate("seller", "businessName photoUrl city contractorType role");
 
   if (product && product.isApproved) {
     res.json(product);
@@ -226,7 +226,7 @@ const getPublicProductsBySeller = asyncHandler(async (req, res) => {
   const products = await SellerProduct.find({
     seller: req.params.sellerId,
     isApproved: true,
-  }).populate("seller", "businessName photoUrl city");
+  }).populate("seller", "businessName photoUrl city contractorType role");
 
   res.json(products);
 });
