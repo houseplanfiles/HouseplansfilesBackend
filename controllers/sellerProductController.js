@@ -23,6 +23,7 @@ const createSellerProduct = asyncHandler(async (req, res) => {
     salePrice,
     countInStock,
     city,
+    unit,
   } = req.body;
 
   if (
@@ -62,6 +63,7 @@ const createSellerProduct = asyncHandler(async (req, res) => {
     image: mainImageUrl,
     images: galleryImageUrls,
     city,
+    unit: unit || "nos",
     status: "Approved",
     isApproved: true,
   });
@@ -102,6 +104,7 @@ const updateMyProduct = asyncHandler(async (req, res) => {
     salePrice,
     countInStock,
     city,
+    unit,
   } = req.body;
 
   product.name = name || product.name;
@@ -113,6 +116,7 @@ const updateMyProduct = asyncHandler(async (req, res) => {
   product.countInStock =
     countInStock !== undefined ? countInStock : product.countInStock;
   product.city = city || product.city;
+  product.unit = unit || product.unit;
 
   if (req.files) {
     if (req.files.image && req.files.image.length > 0) {

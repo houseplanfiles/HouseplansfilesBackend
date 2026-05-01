@@ -27,6 +27,9 @@ const userSchema = mongoose.Schema(
     address: { type: String },
     experience: { type: String },
     businessName: { type: String },
+    gstNumber: { type: String },
+    natureOfBusiness: [{ type: String }],
+    businessAddress: { type: String },
     materialType: { type: String },
     companyName: { type: String },
     contractorType: {

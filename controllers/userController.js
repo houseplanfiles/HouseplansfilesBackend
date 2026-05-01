@@ -21,6 +21,9 @@ const validateRoleFields = (role, body) => {
     companyName,
     experience,
     contractorType,
+    gstNumber,
+    natureOfBusiness,
+    businessAddress,
   } = body;
   switch (role) {
     case "user":
@@ -49,6 +52,9 @@ const validateRoleFields = (role, body) => {
         address,
         city,
         materialType,
+        gstNumber,
+        natureOfBusiness: Array.isArray(natureOfBusiness) ? natureOfBusiness : natureOfBusiness ? [natureOfBusiness] : [],
+        businessAddress,
         isApproved: false,
         status: "Pending",
       };
@@ -431,6 +437,13 @@ const updateUser = asyncHandler(async (req, res) => {
         user.address = req.body.address || user.address;
         user.city = req.body.city || user.city;
         user.materialType = req.body.materialType || user.materialType;
+        user.gstNumber = req.body.gstNumber || user.gstNumber;
+        user.businessAddress = req.body.businessAddress || user.businessAddress;
+        if (req.body.natureOfBusiness) {
+          user.natureOfBusiness = Array.isArray(req.body.natureOfBusiness) 
+            ? req.body.natureOfBusiness 
+            : [req.body.natureOfBusiness];
+        }
         if (req.body.contractorType) {
           user.contractorType = req.body.contractorType;
         }

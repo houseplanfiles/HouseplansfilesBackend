@@ -53,6 +53,10 @@ const sellerProductSchema = mongoose.Schema(
       required: false,
       default: 0,
     },
+    unit: {
+      type: String,
+      default: "nos", // Default to 'nos' (pieces)
+    },
     isApproved: {
       type: Boolean,
       default: true,
