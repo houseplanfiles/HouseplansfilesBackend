@@ -5,11 +5,17 @@ const Category = require("../models/categoryModel.js");
 
 const findOrCreate = async (model, name) => {
   if (!name) return;
+  const trimmedName = name.toString().trim();
   const doc = await model.findOne({
-    name: { $regex: new RegExp(`^${name}$`, "i") },
+    name: { $regex: new RegExp(`^${trimmedName}$`, "i") },
   });
   if (!doc) {
-    await model.create({ name });
+    try {
+      await model.create({ name: trimmedName });
+    } catch (err) {
+      // Handle concurrent creation race condition
+      if (err.code !== 11000) throw err;
+    }
   }
 };
 

@@ -39,6 +39,12 @@ const validateRoleFields = (role, body) => {
         profession,
         city,
         experience,
+        companyName: companyName || "",
+        address: address || "",
+        qualification: body.qualification || "",
+        skills: Array.isArray(body.skills) ? body.skills : (body.skills?.split(",").map(s => s.trim()) || []),
+        charges: body.charges || "",
+        contractorType: contractorType || "Normal",
         isApproved: false,
         status: "Pending",
       };
@@ -59,25 +65,21 @@ const validateRoleFields = (role, body) => {
         status: "Pending",
       };
     case "Contractor":
-      if (
-        !name ||
-        !companyName ||
-        !address ||
-        !city ||
-        !experience ||
-        !profession
-      )
+      if (!name || !address || !city || !experience || !profession)
         throw new Error(
-          "Full Name, Company Name, Address, City, Experience, and Profession are required"
+          "Full Name, Address, City, Experience, and Profession are required"
         );
       return {
         name,
-        companyName,
+        companyName: companyName || "",
         address,
         city,
         experience,
         profession,
-        contractorType: contractorType || "Normal",
+        gstNumber,
+        qualification: body.qualification || "",
+        skills: Array.isArray(body.skills) ? body.skills : (body.skills?.split(",").map(s => s.trim()) || []),
+        charges: body.charges || "",
         isApproved: false,
         status: "Pending",
       };
@@ -228,6 +230,9 @@ const loginUser = asyncHandler(async (req, res) => {
       packages: user.packages,
       workSamples: user.workSamples,
       coverPhotoUrl: user.coverPhotoUrl,
+      qualification: user.qualification,
+      skills: user.skills,
+      charges: user.charges,
       token: generateToken(user._id),
     });
   } else {
@@ -425,10 +430,25 @@ const updateUser = asyncHandler(async (req, res) => {
       user.profession = req.body.profession || user.profession;
       user.city = req.body.city || user.city;
       user.experience = req.body.experience || user.experience;
-      // --- NEW: Bank details update ---
-      user.bankName = req.body.bankName || user.bankName; // <--- ADDED
-      user.bankAccountNumber =
-        req.body.bankAccountNumber || user.bankAccountNumber;
+      user.companyName = req.body.companyName || user.companyName;
+      user.address = req.body.address || user.address;
+      user.qualification = req.body.qualification || user.qualification;
+      user.charges = req.body.charges || user.charges;
+      if (req.body.skills) {
+        user.skills = Array.isArray(req.body.skills)
+          ? req.body.skills
+          : req.body.skills.split(",").map(s => s.trim());
+      }
+      // Admin can set Normal / Verified / Premium
+      if (req.body.contractorType) {
+        user.contractorType = req.body.contractorType;
+      }
+      if (req.body.premiumExpiresAt !== undefined) {
+        user.premiumExpiresAt = req.body.premiumExpiresAt;
+      }
+      // Bank details
+      user.bankName = req.body.bankName || user.bankName;
+      user.bankAccountNumber = req.body.bankAccountNumber || user.bankAccountNumber;
       user.ifscCode = req.body.ifscCode || user.ifscCode;
       user.upiId = req.body.upiId || user.upiId;
       break;
@@ -452,11 +472,20 @@ const updateUser = asyncHandler(async (req, res) => {
         }
         break;
     case "contractor":
+    case "architect":
       user.name = req.body.name || user.name;
       user.companyName = req.body.companyName || user.companyName;
       user.experience = req.body.experience || user.experience;
       user.city = req.body.city || user.city;
       user.address = req.body.address || user.address;
+      user.gstNumber = req.body.gstNumber || user.gstNumber;
+      user.qualification = req.body.qualification || user.qualification;
+      user.charges = req.body.charges || user.charges;
+      if (req.body.skills) {
+        user.skills = Array.isArray(req.body.skills) 
+          ? req.body.skills 
+          : req.body.skills.split(",").map(s => s.trim());
+      }
       
       // Premium fields for administrators or manual updates
       if (req.body.contractorType) {
@@ -467,9 +496,6 @@ const updateUser = asyncHandler(async (req, res) => {
         user.premiumExpiresAt = req.body.premiumExpiresAt;
       }
       user.profession = req.body.profession || user.profession;
-      if (req.body.contractorType) {
-        user.contractorType = req.body.contractorType;
-      }
       break;
   }
 
@@ -513,6 +539,9 @@ const updateUser = asyncHandler(async (req, res) => {
     coverPhotoUrl: updatedUser.coverPhotoUrl,
     packages: updatedUser.packages,
     workSamples: updatedUser.workSamples,
+    qualification: updatedUser.qualification,
+    skills: updatedUser.skills,
+    charges: updatedUser.charges,
     token: generateToken(updatedUser._id),
   });
 });
@@ -558,9 +587,9 @@ const getUserStats = asyncHandler(async (req, res) => {
     },
   ]);
 
-  // Aggregate contractor project count (workSamples)
+  // Aggregate contractor & architect project count (workSamples)
   const contractorStats = await User.aggregate([
-    { $match: { role: { $regex: /^contractor$/i } } },
+    { $match: { role: { $regex: /^(contractor|architect)$/i } } },
     {
       $group: {
         _id: null,
@@ -572,7 +601,7 @@ const getUserStats = asyncHandler(async (req, res) => {
   const totalSellerProducts = await SellerProduct.countDocuments();
   const totalUsers = await User.countDocuments({ role: "user" });
   const totalProfessionals = await User.countDocuments({ role: "professional" });
-  const totalContractors = await User.countDocuments({ role: { $regex: /^contractor$/i } });
+  const totalContractors = await User.countDocuments({ role: { $regex: /^(contractor|architect)$/i } });
   const totalSellers = await User.countDocuments({ role: "seller" });
 
   res.json({ 
@@ -590,9 +619,9 @@ const getUserStats = asyncHandler(async (req, res) => {
 // @route   GET /api/users/admin/contractor-projects
 // @access  Private/Admin
 const getAllContractorProjects = asyncHandler(async (req, res) => {
-  // Case-insensitive role check
+  // Case-insensitive role check for contractors and architects
   const contractors = await User.find({ 
-    role: { $regex: /^contractor$/i } 
+    role: { $regex: /^(contractor|architect)$/i } 
   }).select("name workSamples");
   
   console.log(`Debug: Found ${contractors.length} contractors for projects list.`);
@@ -621,12 +650,12 @@ const getContractorPublicProfile = asyncHandler(async (req, res) => {
     "name companyName photoUrl shopImageUrl city address experience profession contractorType coverPhotoUrl packages workSamples portfolioUrl role"
   );
 
-  if (contractor && contractor.role && contractor.role.toLowerCase() === "contractor") {
+  if (contractor && contractor.role && ["contractor", "architect", "professional"].includes(contractor.role.toLowerCase())) {
     res.json(contractor);
   } else {
-    console.log("Contractor profile search failed for ID:", req.params.id, "Found:", !!contractor, "Role:", contractor?.role);
+    console.log("Contractor/Professional profile search failed for ID:", req.params.id, "Found:", !!contractor, "Role:", contractor?.role);
     res.status(404);
-    throw new Error("Contractor not found or user is not a contractor");
+    throw new Error("Professional not found or user is not a registered professional");
   }
 });
 
@@ -835,6 +864,9 @@ const updateProjectSEO = asyncHandler(async (req, res) => {
       title: seo.title || "",
       description: seo.description || "",
       keywords: Array.isArray(seo.keywords) ? seo.keywords : (seo.keywords?.split(",").map((k) => k.trim()) || []),
+      h1: seo.h1 || "",
+      canonicalUrl: seo.canonicalUrl || "",
+      customLinks: seo.customLinks || [],
     };
 
     await user.save();

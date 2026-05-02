@@ -10,7 +10,7 @@ const userSchema = mongoose.Schema(
     role: {
       type: String,
       required: true,
-      enum: ["user", "professional", "seller", "Contractor", "admin"],
+      enum: ["user", "professional", "seller", "Contractor", "Architect", "admin"],
     },
     name: { type: String },
     isApproved: { type: Boolean, default: false },
@@ -70,6 +70,14 @@ const userSchema = mongoose.Schema(
           title: { type: String, default: "" },
           description: { type: String, default: "" },
           keywords: [{ type: String }],
+          h1: { type: String, default: "" },
+          canonicalUrl: { type: String, default: "" },
+          customLinks: [
+            {
+              label: { type: String },
+              url: { type: String },
+            },
+          ],
         },
       },
     ],
@@ -80,6 +88,11 @@ const userSchema = mongoose.Schema(
     ifscCode: { type: String },
     upiId: { type: String },
     portfolioUrl: { type: String }, // Portfolio PDF URL
+
+    // --- NEW: Architect Specific Fields ---
+    qualification: { type: String },
+    skills: [{ type: String }],
+    charges: { type: String },
 
     passwordResetToken: String,
     passwordResetExpires: Date,
