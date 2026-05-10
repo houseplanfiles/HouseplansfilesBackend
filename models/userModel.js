@@ -92,6 +92,7 @@ const userSchema = mongoose.Schema(
     // --- NEW: Architect Specific Fields ---
     qualification: { type: String },
     skills: [{ type: String }],
+    serviceTypes: [{ type: String }], // e.g. ["NEW CONSTRUCTION", "RENOVATION"]
     charges: { type: String },
 
     passwordResetToken: String,
